@@ -1,0 +1,554 @@
+---
+title: "Final Project: Hong Kong Horse Races"
+author: "Ismail Harti, Ryan Helmlinger, Rustam Ibragimov, Rohan Kheterpal & Matthew Lewis"
+date: "April 20, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+--
+## Data Import
+
+```{r}
+hk <- read.csv("hk.csv")
+```
+
+
+--
+## Data Cleaning and Exploration
+
+```{r}
+hk$won <- as.logical(hk$won)
+hk$date <- NULL
+hk$position_sec5 <- NULL
+hk$position_sec6 <- NULL
+hk$behind_sec5 <- NULL
+hk$behind_sec6 <- NULL
+hk$time5.x <- NULL
+hk$time6.x <- NULL
+hk$sec_time5 <- NULL
+hk$sec_time6 <- NULL
+hk$sec_time7 <- NULL
+hk$time5.y <- NULL
+hk$time6.y <- NULL
+hk$time7 <- NULL
+hk$place_combination4 <- NULL
+hk$place_dividend4 <- NULL
+hk$win_combination2 <- NULL
+hk$win_dividend2 <- NULL
+hk$horse_gear<-NULL
+hk$position_sec4<-NULL
+hk$behind_sec4<-NULL
+hk$time4.x<-NULL
+hk$time4.y<-NULL
+hk$sec_time4<-NULL
+hk$place_dividend3<-NULL
+hk$place_combination3<-NULL
+hk$horse_ratings <- as.factor(hk$horse_ratings)
+hk$place_odds[is.na(hk$place_odds)] <- mean(hk$place_odds, na.rm = TRUE)
+hk$prize[is.na(hk$prize)] <- mean(hk$prize, na.rm = TRUE)
+```
+
+Here, we are cleaning our data to NULL out any mostly empty columns that will be insifnificant in our analysis. We also imputed certain columns that we found important, but had a lot of NA values. To do this, we took the mean of each column, and if a row had an NA, substituted it with the mean value.
+
+```{r}
+movetolast <- function(data, move) {
+  data[c(setdiff(names(data), move), move)]
+}
+hk <- movetolast(hk, c("won"))
+```
+
+By moving our response variable (won) to the end of our data frame, we will be able to work with the data better.
+
+```{r}
+sapply(hk, function(x) sum(is.na(x)))
+```
+
+Checking to make sure that we properly imputed each column.
+
+```{r}
+str(hk)
+summary(hk)
+```
+
+
+--
+## Data Visualization
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=horse_age, y=place_odds)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+Here we see that younger horses tend to be favored in the pre-race place-odds more than older horses. This makes sense because younger horses are intuitively more in shape than those which are older. The best age seems to be 3 years old, indicating a combination of youth and experience in racing.
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=result, y=place_odds)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+The horses with the lowest odds tend to win on average more races than those with higher odds. This makes sense, but it is reassuring to see the data back up our assumption.
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=draw, y=result)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+While this data may seem unnecessary at first, we see that the draw of the horse (which stall it starts in) is insignificant in determining the winner.
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=behind_sec2, y=result)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+By the time the race heads into the second stretch, a pack has formed and it becomes clear which horses are in contention to win the race.
+
+```{r}
+ggplot(hk, aes(x = actual_weight)) + stat_density()+ggtitle("Weight distribution of horses")+xlab("Horse weight")+ylab("Density")+ theme(plot.title = element_text(color="black",size = 14,face = "bold.italic",hjust = 0.5),axis.title.x = element_text(color = "black",size=12,face="bold.italic",hjust = 0.5),axis.title.y = element_text(color = "black",size=12,face="bold.italic",hjust = 0.5))
+```
+
+This graph just shows the weight distribution of horses. Most are between 120 and 130 kilograms.
+
+```{r}
+hk$horse_type<-ifelse(hk$horse_type=="Gelding","Gelding",
+                      ifelse(hk$horse_type=="Brown","Brown",
+                             ifelse(hk$horse_type=="Colt","Colt","Others")))
+ggplot(hk, aes(horse_type, place_odds)) +
+  geom_jitter(aes(color = horse_type, size = 0.2))+ ggtitle("Relationship between horse type \n and pre-race place odds")+xlab("Horse age")+ylab("Pre-race place odds")+ theme(plot.title = element_text(color="grey",size = 14,face = "bold.italic",hjust = 0.5),axis.title.x = element_text(color = "grey",size=12,face="bold.italic",hjust = 0.5),axis.title.y = element_text(color = "grey",size=12,face="bold.italic",hjust = 0.5) )
+```
+
+Another interesting relationship is between place odds and horse type. Most of the horses are Geldings. And it is logical to see that if the is horse is Gelding the place odds are higher.
+
+
+```{r}
+table(hk$horse_country)
+library(maptools)
+    data(wrld_simpl)
+    myCountries = wrld_simpl@data$NAME %in% c("Australia", "United Kingdom", "United States", "Netherlands", "New Zealand","South Africa","Argentina","France","Japan","India","Brazil","Canada","Germany","Spain","Zimbabwe","Italy","Greece")
+    plot(wrld_simpl, col = c(gray(.90), "red")[myCountries+1],main="Countries represented")
+```
+
+Above are all countries represented in Hong Kong horse races.
+
+```{r}
+hk$horse_country<-ifelse(hk$horse_country=="AUS","AUS",
+                         ifelse(hk$horse_country=="NZ","NZ",
+                                ifelse(hk$horse_country=="IRE","IRE",
+                                       ifelse(hk$horse_country=="GB","GB",
+                                              ifelse(hk$horse_country=="USA","USA","Other")))))
+ggplot(hk, aes(horse_country, place_odds)) +
+  geom_jitter(aes(color = horse_country, size = 0.3))+ggtitle("Relationship between horse origin \n and pre-race place odds")+xlab("Horse origin")+ylab("Pre-race place odds")+ theme(plot.title = element_text(color="black",size = 14,face = "bold.italic",hjust = 0.5),axis.title.x = element_text(color = "black",size=12,face="bold.italic",hjust = 0.5),axis.title.y = element_text(color = "black",size=12,face="bold.italic",hjust = 0.5) )
+```
+
+The horses with the highest place-odds are from Ireland, Australia, and New Zealand, so perhaps these horses should be avoided when betting.
+
+```{r}
+library(ggplot2)
+type_plot <- ggplot(data = hk, aes(x = result, y = lengths_behind))
+type_plot + geom_jitter(color="steelblue",alpha=1)+ggtitle("Relationship between the overll result \n and distance behind the leader")+xlab("Result")+ylab("Distance behind")+ theme(plot.title = element_text(color="steelblue",size = 14,face = "bold.italic",hjust = 0.5),axis.title.x = element_text(color = "steelblue",size=12,face="bold.italic",hjust = 0.5),axis.title.y = element_text(color = "steelblue",size=12,face="bold.italic",hjust = 0.5) )
+```
+
+All races tend to be fairly tight between the horses making predicting winners fairly difficult.
+
+```{r}
+age_won <- table(hk$horse_age, hk$won)
+plot(age_won, col="red") # 4 year old horses tend to win more on average than other ages
+ 
+pos1_won <- table(hk$position_sec1, hk$won)
+plot(pos1_won,col="yellow") # horses in the lead at first tend to win most races
+pos2_won <- table(hk$position_sec2, hk$won)
+pos2_won
+plot(pos2_won,col="green")
+pos3_won <- table(hk$position_sec3, hk$won)
+pos3_won
+plot(pos3_won,col="pink") # by the third turn, there is a greater than 50% chance that the lead horse wins the race
+country_won <- table(hk$horse_country, hk$won)
+country_won
+plot(country_won,col="magenta") # Argentinian and South African horses tend to win a higher percentage of races than other countries
+```
+
+Above is some visualizations of our data with comments explaining the results. After analyzing, we have found the average horse we would like to bet on.
+
+- (1) The horse should be **4 years old** as they have the highest proportional chance of winning.
+- (2) The horse should be of **Argentinian** or **South African** background.
+- (3) The horse should have a tendency to be **leading** heading into the **final stretch**.
+- (4) The horse should have a tendency to get a **quick start out of the gate**.
+- (5) The horse should have **fairly low odds**, but not too low that betting is not worthwhile.
+
+```{r}
+hk$horse_country<-ifelse(hk$horse_country=="AUS",0,
+                         ifelse(hk$horse_country=="NZ",1,
+                                ifelse(hk$horse_country=="IRE",2,
+                                       ifelse(hk$horse_country=="GB",3,
+                                              ifelse(hk$horse_country=="USA",4,5)))))
+hk$horse_type<-ifelse(hk$horse_type=="Gelding",0,1)
+hk$venue<-as.numeric(hk$venue)
+hk$config<-ifelse(hk$config=="A",0,
+                  ifelse(hk$config=="A+3",1,
+                         ifelse(hk$config=="B",2,
+                                ifelse(hk$config=="B+2",3,
+                                       ifelse(hk$config=="C",4,5)))))
+hk$going<-ifelse(hk$going=="FAST",0,
+                 ifelse(hk$going=="GOOD",1,
+                        ifelse(hk$going=="GOOD TO FIRM",2,
+                               ifelse(hk$going=="GOOD TO YIELDING",3,
+                                      ifelse(hk$going=="SLOW",4,
+                                             ifelse(hk$going=="SOFT",5,
+                                                    ifelse(hk$going=="WET FAST",6,
+                                                           ifelse(hk$going=="WET SLOW",7,
+                                                                  ifelse(hk$going=="YIELDING",8,9)))))))))
+```
+
+For certain columns (horse_country, horst_type, venue, config, and going) with many factors, we combined certain values to make the data more manageable.
+
+--
+## Logistic Regression Models
+
+```{r}
+logistic1 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + distance, data = hk, family = "binomial")
+summary(logistic1)
+logistic2 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_age + declared_weight, data = hk, family = "binomial")
+summary(logistic2)
+logistic3 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_country, data = hk, family = "binomial")
+summary(logistic3)
+logistic4 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_type, data = hk, family = "binomial")
+summary(logistic4)
+logistic5 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_ratings, data = hk, family = "binomial")
+summary(logistic5)
+logistic6 <- glm(won ~ place_odds +  distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic6)
+logistic7 <- glm(won ~ distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic7)
+logistic8 <- glm(won ~ distance + horse_age + declared_weight + horse_country + horse_type + draw + jockey_id + trainer_id + surface, data = hk, family = "binomial")
+summary(logistic8)
+logistic9 <- glm(won ~ place_odds + declared_weight + horse_country + draw + jockey_id, data = hk, family = "binomial")
+summary(logistic9)
+```
+
+All of these above logistic models show correlations between variables about horses and whether they win a race. Many of these are some combination of the stats of the horse and/or race. We played around with the different models to see how the different variables reacted. Logistic models 8 and 9 were the best models as they both combined the best variables, with model 9 including only the most effective ones. Based on these models, declared weight, horse_country, draw, jockey_id, and place_odds. Of these, weight had a positive correlation and the rest had a negative one. I'd the assume the weight is positive, because that means more muscles and thus moer power. Draw would be negative because inner lanes have smaller draws, so it would be advantageous to get a draw in an inner lane. Place odds is also negative which makes a lot of sense. The horse with the smallest odds is favored to win, and so there is obviously a correlation between the lowest odds and that worse winning.For horse_country and jockey_id, especially jockey_id, I believe these had such strong correlations because the value of them is important and does determine the result a lot, however these are discrete values, so a logistic regression would have a hard time determining the correct slope regression for these values.
+
+--
+## Predictive Models
+
+### Normalize and Structure Data
+```{r}
+hk$result <- NULL
+```
+
+I am setting the result column to NULL so that it does not make our model overly accurate. Otherwise, our model would know how each horse placed and be able to easily determine whether they won or not.
+
+```{r}
+set.seed(42)
+r_hk <- hk[sample(nrow(hk)),]
+```
+
+```{r}
+# normalizing data
+hk_norm <- as.data.frame(model.matrix(~.-1, r_hk))
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+```{r}
+hk_norm <- as.data.frame(lapply(hk_norm[1:77], normalize))
+```
+
+```{r}
+table(hk_norm$won)
+```
+
+```{r}
+# separate data into test and train
+train_x <- hk_norm[1:60000, -ncol(hk_norm)]
+test_x <- hk_norm[60001:79447, -ncol(hk_norm)]
+train_y <- hk_norm[1:60000, ncol(hk_norm)]
+test_y <- hk_norm[60001:79447, ncol(hk_norm)]
+alpha_train <- hk_norm[1:60000, ]
+alpha_test <- hk_norm[60001:79447, ]
+```
+
+Above, we normalized our datas to make all values fall between 0 and 1. We then divided our normalized dataset into test and train sets to be used by our models. We decided not to randomize our data because each race consisted of multiple horses that all raced together. We found it important to keep horse runs contained within their races to achieve the best possible results. This did cause most of our train data to be from earlier years, but in our analysis, we found that the year of the race did not matter in determininng a winner.
+
+--
+### kNN
+```{r}
+library(class)
+hk_norm_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 7) # no missing values are allowed
+library(gmodels)
+CrossTable(x = test_y, y = hk_norm_pred, prop.chisq = FALSE)
+```
+
+```{r}
+library(caret)
+confusionMatrix(factor(hk_norm_pred), factor(test_y))
+```
+
+We conducted our kNN model with a k of 7 and found it to have an accuracy of 0.9208 and Kappa of 0.1129.
+
+#### Improving kNN
+```{r}
+library(C50)
+knn_boost10 <- C5.0(alpha_train[-1], as.factor(alpha_train$won),
+                       trials = 10)
+knn_boost10
+summary(knn_boost10)
+knn_boost_pred10 <- predict(knn_boost10, alpha_test)
+CrossTable(alpha_test$won, knn_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+## Making some mistakes more costly than others
+# create a cost matrix
+knn_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+knn_error_cost
+# apply the cost matrix to the tree
+knn_cost <- C5.0(alpha_train[-1], as.factor(alpha_train$won),
+                          costs = knn_error_cost)
+knn_cost_pred <- predict(knn_cost, alpha_test)
+CrossTable(alpha_test$won, knn_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our kNN model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+--
+### SVM
+```{r}
+# normalizing data
+hk_norm_svm <- as.data.frame(model.matrix(~.-1, r_hk))
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+```{r}
+hk_norm_svm <- as.data.frame(lapply(hk_norm_svm[1:77], normalize))
+```
+
+```{r}
+svm_train <- hk_norm_svm[1:60000, ]
+svm_test <- hk_norm_svm[60001:79447, ]
+library(kernlab)
+hk_classifier <- ksvm(wonTRUE ~ ., data = svm_train, kernel = "rbfdot")
+hk_predict <- predict(hk_classifier, svm_test)
+svm_test$wonTRUE <- as.matrix(as.factor(svm_test$wonTRUE))
+hk_predict <- ifelse(hk_predict < 0.22, 0, 1)
+table(hk_predict, svm_test$wonTRUE)
+hk_predict = factor(hk_predict, levels = c(0, 1))
+svm_test$wonTRUE = factor(svm_test$wonTRUE, levels = c(0, 1))
+confusionMatrix(hk_predict, svm_test$wonTRUE)
+```
+
+We found that using the SVM kernel rbfdot was most accurate for our model resulting in 0.9205 accuracy, but a Kappa lower than our kNN at 0
+
+#### Improving SVM
+```{r}
+library(C50)
+svm_boost10 <- C5.0(svm_train[-1], as.factor(svm_train$wonTRUE),
+                       trials = 10)
+svm_boost10
+summary(svm_boost10)
+svm_boost_pred10 <- predict(svm_boost10, svm_test)
+CrossTable(svm_test$won, svm_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+## Making some mistakes more costly than others
+# create a cost matrix
+svm_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+svm_error_cost
+# apply the cost matrix to the tree
+svm_cost <- C5.0(svm_train[-1], as.factor(svm_train$won),
+                          costs = svm_error_cost)
+svm_cost_pred <- predict(svm_cost, svm_test)
+CrossTable(svm_test$won, svm_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our SVM model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+--
+### ANN
+```{r}
+library(neuralnet)
+hk_ann <- r_hk
+# normalizing data
+hk_ann <- as.data.frame(model.matrix(~.-1, hk_ann))
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+hk_ann <- as.data.frame(lapply(hk_ann[1:ncol(hk_ann)], normalize))
+hk_train_ann <- hk_ann[1:60000, ]
+hk_test_ann <- hk_ann[60001:79447, ]
+```
+
+```{r}
+hk_model_ann <- neuralnet(formula = wonTRUE ~ ., data = hk_train_ann, threshold = 0.2)
+plot(hk_model_ann)
+```
+
+```{r}
+model_results <- compute(hk_model_ann, hk_test_ann)
+predicted_won <- model_results$net.result
+summary(predicted_won)
+cor(predicted_won, hk_test_ann$wonTRUE)
+binary_ps <- ifelse(predicted_won > 0.062, 1, 0)
+library(caret)
+confusionMatrix(as.factor(binary_ps), as.factor(hk_test_ann$wonTRUE))
+```
+
+With just one node, our ANN model had an accuracy of 0.9644 and a Kappa of 0.7979.
+
+```{r}
+hk_model_ann2 <- neuralnet(formula = wonTRUE ~ ., data = hk_train_ann, hidden = 3, threshold = 0.2)
+```
+
+```{r}
+# plot the network
+plot(hk_model_ann2)
+```
+
+```{r}
+# evaluate the results as we did before
+model_results2 <- compute(hk_model_ann2, hk_test_ann)
+predicted_won2 <- model_results2$net.result
+summary(predicted_won2)
+cor(predicted_won2, hk_test_ann$wonTRUE)
+binary_ps2 <- ifelse(predicted_won2 > 0.062, 1, 0)
+library(caret)
+confusionMatrix(as.factor(binary_ps2), as.factor(hk_test_ann$wonTRUE))
+```
+
+After adding 2 more nodes to have 3 total, we found our accuracy rate now be 0.9175 and our Kappa to be 0.6177. Interestingly, only one node was the most accurate.
+
+#### Improving ANN
+```{r}
+library(C50)
+ann_boost10 <- C5.0(hk_train_ann[-1], as.factor(hk_train_ann$wonTRUE),
+                       trials = 10)
+ann_boost10
+summary(ann_boost10)
+ann_boost_pred10 <- predict(ann_boost10, hk_test_ann)
+CrossTable(hk_test_ann$wonTRUE, ann_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+## Making some mistakes more costly than others
+# create a cost matrix
+ann_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+ann_error_cost
+# apply the cost matrix to the tree
+ann_cost <- C5.0(hk_train_ann[-1], as.factor(hk_train_ann$wonTRUE),
+                          costs = ann_error_cost)
+ann_cost_pred <- predict(ann_cost, hk_test_ann)
+CrossTable(hk_test_ann$wonTRUE, ann_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our ANN model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+--
+### Decision Tree
+```{r}
+tree_train <- hk_norm[1:60000, ]
+tree_test  <- hk_norm[60001:79447, ]
+tree_train$won<-as.factor(tree_train$won)
+tree_test$won<-as.factor(tree_test$won)
+prop.table(table(tree_train$won))
+prop.table(table(tree_test$won))
+library(C50)
+win_model <- C5.0(tree_train[-ncol(hk_norm)], tree_train$won)
+win_model
+summary(win_model)
+#Creating a factor vector of predictions on the test data
+win_pred <- predict(win_model, tree_test)
+#Creating a cross table of predicted versus actual classes
+library(gmodels)
+CrossTable(tree_test$won, win_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual win', 'predicted win'))
+library(caret)
+confusionMatrix(factor(win_pred), factor(tree_test$won))
+```
+
+With a descision tree, our model had a 100% accuracy rate.
+
+### Improving Decision Tree
+```{r}
+#Creating a cost matrix, where the weight of a False Positive costs 4, while the weight of a False Negative only costs 1.
+error_cost <- matrix(c(0, 4, 1, 0), nrow = 2)
+error_cost
+# apply the cost matrix to the tree
+win_cost <- C5.0(tree_train[-ncol(hk_norm)], tree_train$won,
+                          costs = error_cost)
+win_cost_pred <- predict(win_cost, tree_test)
+CrossTable(tree_test$won, win_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual win', 'predicted win'))
+confusionMatrix(factor(win_cost_pred), factor(tree_test$won))
+```
+
+Even with the 100% accuracy rate, the model could still be slightly off in the future, so it's a good idea to still apply costs accordingly. In this specific model, we decided to make False Positives cost more. This is because if you believe a horse will win and bet money, that's worse than believing a worse will lose and not betting money. This will reult in less losses and greater overall happisness in the better.
+
+--
+### Combined Model
+```{r}
+# combining data
+combined_hk <- data.frame(as.numeric(hk_norm_pred), as.numeric(hk_predict), as.numeric(predicted_won2), hk_test_ann$wonTRUE)
+combined_hk$weighted <- ifelse(as.numeric(hk_norm_pred) + as.numeric(hk_predict) + as.numeric(predicted_won2) > 4, 1, 0)
+combined_hk$weighted = factor(combined_hk$weighted, levels = c(0, 1))
+combined_hk$hk_test_ann.wonTRUE = factor(combined_hk$hk_test_ann.wonTRUE, levels = c(0, 1))
+equality_checker <- combined_hk$weighted == combined_hk$hk_test_ann.wonTRUE
+table(equality_checker)
+prop.table(table(equality_checker))
+confusionMatrix(as.factor(combined_hk$weighted), as.factor(hk_test_ann$wonTRUE))
+CrossTable(hk_test_ann$wonTRUE, combined_hk$weighted,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+We decided to combine our kNN, SVM, and ANN models into one final predictive model. Interestingly, this model had a poorer accuracy and Kappa, 0.9223 and 0.0408 respectively, than our individual ANN model. This is probably because the less accurate results of the non-boosted ANN and SVM models weighed down the performance of the combined model. If we had to choose one model to base our predictions on, it would be the single-node **artificial neural network** because it had the best performance of any model, even the combined one. Otherwise, we would use a kNN or SVM, but only if it was boosted through 10 or 100 iterations.
